@@ -1,0 +1,14 @@
+# Windows junk
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Hashcat runtime files. The potfile can contain recovered passwords.
+hashcat.potfile
+hashcat.log
+hashcat.dictstat2
+*.kernel
