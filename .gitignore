@@ -10,5 +10,6 @@ __pycache__/
 # Hashcat runtime files. The potfile can contain recovered passwords.
 hashcat.potfile
 hashcat.log
+show.log
 hashcat.dictstat2
 *.kernel
