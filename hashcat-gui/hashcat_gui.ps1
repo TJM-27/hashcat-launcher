@@ -142,7 +142,9 @@ $script:HashcatExe = ""
 $script:HashPathForRun = ""
 $script:HashcatCwd = ""
 $script:RunLogPath = $null
+$script:RunErrLogPath = $null
 $script:RunLogReadPos = 0
+$script:RunErrLogReadPos = 0
 $script:AttackLayoutReady = $false
 
 $script:ColorBg = [System.Drawing.Color]::FromArgb(27, 35, 48)
@@ -604,23 +606,33 @@ function Cleanup-TempHash {
 
 function Cleanup-RunLog {
     $script:RunLogReadPos = 0
+    $script:RunErrLogReadPos = 0
     if ($script:RunLogPath -and (Test-Path -LiteralPath $script:RunLogPath)) {
         Remove-Item -LiteralPath $script:RunLogPath -Force -ErrorAction SilentlyContinue
     }
     $script:RunLogPath = $null
+    if ($script:RunErrLogPath -and (Test-Path -LiteralPath $script:RunErrLogPath)) {
+        Remove-Item -LiteralPath $script:RunErrLogPath -Force -ErrorAction SilentlyContinue
+    }
+    $script:RunErrLogPath = $null
 }
 
-function Read-RunLogIncremental {
-    if (-not $script:RunLogPath) { return }
-    if (-not (Test-Path -LiteralPath $script:RunLogPath)) { return }
+function Read-LogFileIncremental {
+    param(
+        [string]$Path,
+        [ref]$ReadPosition
+    )
+
+    if (-not $Path) { return }
+    if (-not (Test-Path -LiteralPath $Path)) { return }
     try {
-        $fs = [System.IO.File]::Open($script:RunLogPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        $fs = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
         try {
-            if ($script:RunLogReadPos -gt $fs.Length) {
-                $script:RunLogReadPos = 0
+            if ($ReadPosition.Value -gt $fs.Length) {
+                $ReadPosition.Value = 0
             }
-            if ($fs.Length -le $script:RunLogReadPos) { return }
-            [void]$fs.Seek($script:RunLogReadPos, [System.IO.SeekOrigin]::Begin)
+            if ($fs.Length -le $ReadPosition.Value) { return }
+            [void]$fs.Seek($ReadPosition.Value, [System.IO.SeekOrigin]::Begin)
             $sr = New-Object System.IO.StreamReader($fs, [System.Text.Encoding]::UTF8, $true, 4096, $true)
             try {
                 $newText = $sr.ReadToEnd()
@@ -630,13 +642,18 @@ function Read-RunLogIncremental {
             } finally {
                 $sr.Dispose()
             }
-            $script:RunLogReadPos = $fs.Position
+            $ReadPosition.Value = $fs.Position
         } finally {
             $fs.Dispose()
         }
     } catch {
         # Ignore transient file access races while hashcat writes.
     }
+}
+
+function Read-RunLogIncremental {
+    Read-LogFileIncremental -Path $script:RunLogPath -ReadPosition ([ref]$script:RunLogReadPos)
+    Read-LogFileIncremental -Path $script:RunErrLogPath -ReadPosition ([ref]$script:RunErrLogReadPos)
 }
 
 function Show-Recovered {
@@ -1066,8 +1083,10 @@ $btnRun.Add_Click({
     try {
         Cleanup-RunLog
         $script:RunLogPath = Join-Path $env:TEMP ("hc_gui_run_" + [Guid]::NewGuid().ToString("N") + ".log")
+        $script:RunErrLogPath = Join-Path $env:TEMP ("hc_gui_run_" + [Guid]::NewGuid().ToString("N") + ".err.log")
         $script:RunLogReadPos = 0
-        $proc = Start-Process -FilePath $exePath -ArgumentList $argList -WorkingDirectory $workingDir -NoNewWindow -PassThru -RedirectStandardOutput $script:RunLogPath -RedirectStandardError $script:RunLogPath
+        $script:RunErrLogReadPos = 0
+        $proc = Start-Process -FilePath $exePath -ArgumentList $argList -WorkingDirectory $workingDir -NoNewWindow -PassThru -RedirectStandardOutput $script:RunLogPath -RedirectStandardError $script:RunErrLogPath
     } catch {
         Cleanup-RunLog
         Cleanup-TempHash
