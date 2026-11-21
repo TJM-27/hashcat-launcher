@@ -12,6 +12,7 @@ Double-click **Hashcat Launcher.exe**.
 
 Copy this whole folder. The exe looks next to itself for:
 
+- `hashcat_gui.ps1` — the window logic
 - `hashcat-6.2.5\` — hashcat and its kernels, rules, and OpenCL files
 - `icons\` — the window icon
 
@@ -82,7 +83,8 @@ Preset hash modes in the dropdown:
 | `Hashcat Launcher.exe` | The program to open. |
 | `Hashcat Launcher.cmd` | Starts the exe, or the script if the exe is gone. |
 | `hashcat_gui.ps1` | Source for the window. |
-| `Build-HashcatLauncher.ps1` | Rebuilds the exe after you edit the script. Only needed on the machine where you change the source. |
+| `HashcatLauncher.cs` | Small exe wrapper that starts `hashcat_gui.ps1`. |
+| `Build-HashcatLauncher.ps1` | Rebuilds the exe wrapper. Only needed if you change `HashcatLauncher.cs`. |
 | `hashcat-6.2.5\` | Bundled hashcat. |
 | `icons\` | Window and header icon. |
 | `hashcat_gui.py` | Older Python version of a similar window. The exe is the one to use. |
@@ -95,4 +97,4 @@ From this folder, in PowerShell:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Build-HashcatLauncher.ps1
 ```
 
-That writes `Hashcat Launcher.exe` here. The build step can install the `ps2exe` module for the current user. Computers you copy the folder to do not need that module.
+That writes `Hashcat Launcher.exe` here. The exe is only a small wrapper; it loads `hashcat_gui.ps1` from the same folder when you open it.
